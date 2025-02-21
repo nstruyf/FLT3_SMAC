@@ -10,7 +10,7 @@ library(ggplot2)
 library(readxl)
 
 
-# load sDSS data and annotation files
+# load protein data and annotation files
 
 setwd()
 protein_data = read.table("protein.txt", stringsAsFactors = FALSE, header = TRUE, quote = "", comment.char = "",sep = "\t")
