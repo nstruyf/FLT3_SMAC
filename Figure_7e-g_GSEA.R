@@ -15,11 +15,8 @@ library(readxl)
 
 setwd()
 protein_data = read.table("protein.txt", stringsAsFactors = FALSE, header = TRUE, quote = "", comment.char = "",sep = "\t")
-annotation <- read.csv("/Users/nonastruyf/Projects/FLT3_project/data_sharing/files/annotation.csv", stringsAsFactors = FALSE) 
+annotation <- read.csv("annotation.csv", stringsAsFactors = FALSE) 
 
-setwd("/Users/nonastruyf/Projects/FLT3_project/Proteomics/wt_mut")
-protein_data = read.table("proteomics_wt_mut.txt", stringsAsFactors = FALSE,
-                          header = TRUE, quote = "", comment.char = "",sep = "\t")
 
 # filter out NA values from protein table
 
@@ -121,7 +118,7 @@ gene_list_3 <- sort(gene_list_3, decreasing = T)
 
 # load gene set and run GSEA. Genesets are available at https://github.com/andygxzeng/AMLHierarchies and https://doi.org/10.1016/j.cell.2019.01.031 (Table S3 - Tumor-derived, combined)
 
-gene_list_LPSC<- read.gmt("/Users/nonastruyf/Projects/FLT3_project/Proteomics/wt_mut/LPSC/AMLCellType_Genesets.gmt")
+gene_list_LPSC<- read.gmt("AMLCellType_Genesets.gmt")
 LSPC_GSEA_res1 <- GSEA(geneList = gene_list_1,
                       pvalueCutoff = 10,
                       pAdjustMethod = 'fdr',
@@ -135,7 +132,7 @@ LSPC_GSEA_res3 <- GSEA(geneList = gene_list_3,
                       pAdjustMethod = 'fdr',
                       TERM2GENE = gene_list_LPSC[c('term', 'gene')])
 
-gene_list_VG<- read.table("/Users/nonastruyf/Projects/FLT3_project/Proteomics/wt_mut/vangalen/vangalen_set3.txt", header = TRUE, row.names = 1, sep = "\t")
+gene_list_VG<- read.table("vangalen_set3.txt", header = TRUE, row.names = 1, sep = "\t")
 VG_GSEA_res1 <- GSEA(geneList = gene_list_1,
                     pvalueCutoff = 10,
                     pAdjustMethod = 'fdr',
