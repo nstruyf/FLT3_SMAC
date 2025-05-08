@@ -15,18 +15,10 @@ library(dplyr)
 library(tidyr)
 
 
-# read .pxl files and merge them into a single Seurat object
+# load RData object containing all data
 
-setwd("/Pixelgen/")
-data_files <-
-  c(S1 = "FU-198-AML-094.dataset.pxl",
-    S3 = "FU-198-AML-112-2.dataset.pxl",
-    S4 = "FU-198-AML-116-1.dataset.pxl",
-    S6 = "FU-198-AML-123.dataset.pxl",
-    S7 = "FU-198-AML-154.dataset.pxl",
-    S8 = "FU-198-AML-162.dataset.pxl")
-
-pg_data <- lapply(data_files, ReadMPX_Seurat)
+setwd()
+pg_data <- load("pixelgen.RData")
 pg_data_combined <- merge (pg_data[[1]], y = pg_data[-1], add.cell.ids = names(pg_data))
 
 
