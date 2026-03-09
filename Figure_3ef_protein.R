@@ -4,6 +4,8 @@
 library(dplyr)
 library(ggplot2)
 library(ggrepel)
+library(ComplexHeatmap)
+library(circlize)
 
 # load sDSS data and annotation files
 setwd()
@@ -58,6 +60,76 @@ results_table_protein <- data.frame(
   P_value = p_values,
   Spearman_correlation = spearman_correlations,
   Spearman_p_value = spearman_p_values)
+
+# select top 25 positive and negative proteins for heatmap
+results_table_protein$log10_p_value <- -log10(results_table_protein$Spearman_p_value)
+alpha <- 0.05
+sig_results <- results_table_protein %>% 
+  dplyr::filter(Spearman_p_value < alpha)
+top_n <- 25 
+top_pos <- sig_results %>%
+  plyr::arrange(plyr::desc(Spearman_correlation)) %>%
+  dplyr::slice(1:top_n)
+top_neg <- sig_results %>%
+  plyr::arrange(Spearman_correlation) %>%
+  dplyr::slice(1:top_n)
+top_proteins <- bind_rows(top_pos, top_neg)
+expr <- protein_data
+expr <- na.omit(expr)
+rownames(expr) <- expr$Name
+expr$Name <- NULL  
+expr_sub <- expr[rownames(expr) %in% top_proteins$Protein, ]
+
+# prepare heatmap annotation and parameters
+annotation_sorted <- annotation %>% plyr::arrange(Midostaurin)
+annotation_filtered <- annotation_sorted[annotation_sorted$ID %in% colnames(expr_sub), ]
+expr_sub <- expr_sub[, annotation_filtered$ID]
+expr_scaled <- t(scale(t(expr_sub)))
+annotation_hm2 <- data.frame(Midostaurin = annotation_filtered$Midostaurin)
+dot_colors <- ifelse(annotation_hm2$Midostaurin > 3.46,
+                     "#4DB5BC",  # high
+                     "#870052")  # low
+ylim_fixed <- c(0, 15)
+axis_ticks <- seq(0, 15, by = 5)
+colAnn2 <- HeatmapAnnotation(
+  Midostaurin_Dots = anno_points(
+    annotation_hm2$Midostaurin,
+    size = unit(3, "mm"),
+    gp = gpar(col = dot_colors),
+    ylim = ylim_fixed,
+    axis_param = list(
+      at = axis_ticks,
+      labels = axis_ticks,
+      gp = gpar(fontsize = 12)
+    )
+  ),
+  which = "col",
+  annotation_height = unit(2, "cm"),
+  annotation_width = unit(1, "cm"),
+  show_annotation_name = FALSE
+)
+
+# generate and draw heatmap
+HM <- Heatmap(
+  expr_scaled,
+  name = "Z-score",
+  top_annotation = colAnn2,
+  cluster_rows = TRUE,
+  cluster_columns = FALSE,   
+  show_row_names = TRUE,
+  show_column_names = FALSE,
+  col = colorRamp2(c(-2,-1,0,1,2), c("#053061","#4393C3","#F7F7F7", "#D6604D", "#67001F")),
+  row_title = "Top correlated proteins",
+  column_title = "",
+  heatmap_legend_param = list(legend_direction = "vertical",
+                              title_gp = gpar(fontsize = 12,fontface = "bold"),
+                              row_names_gp = gpar(fontsize = 12),
+                              labels_gp = gpar(fontsize = 12)))
+draw(HM)
+HM_drawn <- draw(HM, merge_legend = TRUE)
+png("fig_3e.png", width = 14, height = 22, units = "cm", res = 300)
+HM_drawn
+dev.off()
 
 # select the top significant proteins from the results table
 top_proteins <- results_table_protein %>%
