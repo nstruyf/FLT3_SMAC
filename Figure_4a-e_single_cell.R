@@ -1,8 +1,6 @@
-
 # Figure 4a-e: spatial single cell proteomics comparing FLT3 mutant midostaurin responders and non-responders. 
 
 # load libraries
-
 library(SeuratObject)
 library(Seurat)
 library(pixelatorR)
@@ -14,34 +12,25 @@ library(stringr)
 library(dplyr)
 library(tidyr)
 
-
 # load RData object containing all data
-
 setwd()
 pg_data <- load("pixelgen.RData")
 pg_data_combined <- merge (pg_data[[1]], y = pg_data[-1], add.cell.ids = names(pg_data))
 
-
 # assign sample IDs as metadata and filter based on cell quality
-
 pg_data_combined <- pg_data_combined %>%
   AddMetaData(metadata = str_remove(rownames(pg_data_combined[[]]), "_.*"), col.name = "sample") %>%
   subset(edges >= 2000 & tau_type == "normal")  
 
-
 # merge all mpxCells layers into one
-
 pg_data_combined[["mpxCells"]] <- JoinLayers(pg_data_combined[["mpxCells"]])
 
-
 # identify proteins with a median expression of at least 5 while excluding QC markers
-
 filtered_proteins <- LayerData(pg_data_combined, layer = "counts") %>%
   apply(MARGIN = 1, median) %>%
   enframe("marker", "median") %>%
   arrange(-median) %>% 
   filter(median >= 5, !marker %in% c("ACTB", "mIgG1", "mIgG2a", "mIgG2b")) 
-
 pg_data_combined_processed <- 
   pg_data_combined %>%
   subset(features = filtered_proteins$marker)
@@ -51,7 +40,6 @@ pg_data_combined_processed <-
                 margin = 2)
 
 # normalize data using CLR normalization, identify variable features, scale the data, and run PCA & UMAP for visualization
-
 pg_data_combined_processed <- pg_data_combined %>%
   subset(features = filtered_proteins$marker) %>%
   NormalizeData(normalization.method = "CLR", margin = 2) %>%
@@ -60,31 +48,22 @@ pg_data_combined_processed <- pg_data_combined %>%
   RunPCA(npcs = 30) %>%
   RunUMAP(dims = 1:10)
 
-
 # assign condition to samples based on midostaurin response
-
 sensitive_samples <- c("S1", "S3", "S6")
 pg_data_combined_processed$condition <- sapply(pg_data_combined_processed$sample, function(ita) ifelse (ita %in% sensitive_samples, "Responders", "Non-responders"))
 
-
 # identify nearest neighbors based on PCA dimensions and perform clustering to group similar samples together
-
 pg_data_combined_processed <-
   pg_data_combined_processed %>%
   FindNeighbors(dims = 1:10) %>%
   FindClusters(random.seed = 1)
 
-
 # run UMAP using the first 10 PCs to reduce dimensions for visualization
-
 pg_data_combined_processed <- RunUMAP(pg_data_combined_processed, dims = 1:10, n.neighbors = 30, min.dist = 0.3)
 
-
 # annotate clusters based on marker expression
-
 DoHeatmap(subset(pg_data_combined_processed, downsample = 100), size = 2, 
           features = c("CD44","CD38","CD33","HLA-DR","CD11c","CD14","CD64","CD7","CD71","CD41","CD20","CD4", "CD8"))
-
 cell_annotation <-
   c("0" = "Stem cell-like",
     "1" = "Myelomonocytic",
@@ -100,14 +79,11 @@ cell_annotation <-
     "11" = "Stem cell-like",
     "12" = "Stem cell-like",
     "13" = "B cells")
-
 pg_data_combined_processed <- pg_data_combined_processed %>%
   AddMetaData(setNames(cell_annotation[pg_data_combined_processed$seurat_clusters],
                        nm = colnames(pg_data_combined_processed)), "cell_type")
 
-
 # create annotated UMAP
-
 plot1 <- pg_data_combined_processed %>%
   DimPlot(group.by = "cell_type", pt.size = 1,
           cols = c("#CCEBED","#CAB2D6","#B84145", "#FF876F","#F59A00", "#FFC66D","#6A3D9A","#54B986","#4DB5BC")) + 
@@ -128,23 +104,17 @@ plot1
 
 ggsave("fig_4a.png", height = 3.2, width = 3.2)
 
-
 # remove T and B cell clusters 
-
 Idents(pg_data_combined_processed) <- "seurat_clusters"
 removed_clusters <- WhichCells(pg_data_combined_processed, idents = c(5, 13))
 selected_clusters <- subset(pg_data_combined_processed, cells = setdiff(Cells(pg_data_combined_processed), removed_clusters))
 
-
 # re-cluster myeloid cells
-
 selected_clusters <- selected_clusters %>%
   RunPCA(npcs = 30) %>%
   RunUMAP(dims = 1:10, n.neighbors = 30, min.dist = 0.3)
 
-
 # create annotated UMAP without lymphocytes
-
 plot2 <- selected_clusters %>%
   DimPlot(group.by = "cell_type", pt.size = 1,
           cols = c("#CAB2D6","#B84145", "#FF876F","#F59A00", "#FFC66D","#6A3D9A","#54B986")) +
@@ -165,18 +135,13 @@ plot2
 
 ggsave("fig_4a2.png", height = 3.2, width = 3.2)
 
-
 # group samples by condition and perform differential expression analysis
-
 Idents(selected_clusters) <- "condition"
 sens_vs_res <- FindMarkers(selected_clusters, ident.1 = "Non-responders", ident.2 = "Responders", verbose = FALSE)
 sens_vs_res$gene <- rownames(sens_vs_res)
 
-
 # plot differential expression
-
 cutoff <- sens_vs_res$p_val_adj < 0.05 &  abs(sens_vs_res$avg_log2FC) > 0.4
-
 ggplot(sens_vs_res, aes(x = avg_log2FC, y = -log10(p_val_adj))) +
   geom_point(size = 3, color = "grey70") +
   geom_point(data = sens_vs_res[cutoff,], size = 3, color = ifelse(sens_vs_res[cutoff,"avg_log2FC"] > 0, "#870052","#4DB5BC")) +
@@ -196,12 +161,8 @@ ggplot(sens_vs_res, aes(x = avg_log2FC, y = -log10(p_val_adj))) +
 
 ggsave(file.path(folder_path,"fig_4b.png"), plot = p, height = 2.5, width = 2.8)
 
-
 # create featureplots for CD20 and CD45RA
-
 Idents(selected_clusters) <- "seurat_clusters"
-
-
 fp1 <- FeaturePlot(selected_clusters, pt.size = 0.5, max.cutoff = 0.5, features = c("CD200"), reduction = "umap", coord.fixed = FALSE) +
   theme(
     text = element_text(family = "Arial", size = 12),
@@ -235,21 +196,16 @@ fp2 <- FeaturePlot(selected_clusters, pt.size = 0.5, max.cutoff = 1, features = 
   scale_color_gradientn(colors = c("#C7ECDC", "#54B986","#094334"), breaks = c(0,0.5), labels = c("min", "max"))
 
 comb <- (fp1 | fp2) + plot_layout(ncol=2)
-
 ggsave("fig_4c.png", height = 3, width = 6)
 
-
 # run differential polarity analysis
-
 Idents(selected_clusters) <- "condition"
 pol_test <- RunDPA(selected_clusters, 
                    target = "Non-responders",
                    reference = "Responders", 
                    contrast_column = "condition")
 
-
 # plot differential polarity
-
 PolarizationScores(selected_clusters, meta_data_columns = "condition") %>%
   filter(condition == "Non-responders") %>%
   group_by(marker) %>%
@@ -277,9 +233,7 @@ PolarizationScores(selected_clusters, meta_data_columns = "condition") %>%
 
 ggsave("fig_4d.png", height = 2.5, width = 2.6)
 
-
 # run differential colocalization analysis
-
 progressr::with_progress({
   colocalization_test <- RunDCA(selected_clusters,
                                 target = "Non-responders",
@@ -287,9 +241,7 @@ progressr::with_progress({
                                 contrast_column = "condition")
 })
 
-
 # plot differential colocalization
-
 ColocalizationScores(selected_clusters, meta_data_columns = "condition") %>%
   filter(condition == "Non-responders") %>%
   group_by(marker_1, marker_2) %>%
@@ -311,23 +263,17 @@ ColocalizationScores(selected_clusters, meta_data_columns = "condition") %>%
 
 ggsave("supp_figure_4b.png", width = 6, height = 6)
 
-
 # calculate colocalization scores based on the condition and remove same marker pairs
-
 DefaultAssay(selected_clusters) <- "mpxCells"
 colocalization_scores <- ColocalizationScores(selected_clusters, meta_data_columns = "condition") %>%
   filter(marker_1 != marker_2)
 
-
 # create new contrast variable and select marker pairs for visualization
-
 plot_components <- colocalization_scores %>%
   unite("contrast", marker_1:marker_2, sep = "/") %>%
   filter(contrast == "CD45/CD82") 
 
-
 # arrange and filter colocalization scores 
-
 plot_components <- plot_components %>%
   arrange(-pearson_z) %>%
   filter(abs(pearson_z) < 10) %>%
@@ -336,45 +282,33 @@ plot_components <- plot_components %>%
   ungroup()
 
 # select relevant columns and convert component names
-
 plot_components <- 
   dplyr::select(plot_components, contrast, pearson_z, component, condition) %>%
   mutate(component_number = str_extract(component, "[0-9]+") %>% as.numeric())
 
-
 # order data by colocalization values
-
 plot_components %>%
   ungroup() %>% 
   arrange(pearson_z) 
 
-
 # select components for visualization
-
 plot_components <- plot_components %>%
   filter(row_number() %in% c(1,118))
 
-
 # load graph layout
-
 selected_clusters <- selected_clusters %>%
   LoadCellGraphs(cells = plot_components$component) %>%
   ComputeLayout(layout_method = "fr", seed = 1)
 
-
 # plot 2D graph based on computed layout
-
 Plot2DGraph(selected_clusters, cells = plot_components$component, layout_method = "fr") +
   plot_layout(ncol = 4) &
   theme(plot.title = element_text(size = 8))
 
-
 # plot and customize 2D graph
-
 plot_markers <- c("CD45", "CD82")
 plot_titles <- paste(plot_components$condition, plot_components$component_number, sep = "\n") %>%
   setNames(nm = plot_components$component)
-
 Plot2DGraphM(selected_clusters,
              layout_method = "fr",
              node_size = 2,
