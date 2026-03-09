@@ -1,8 +1,6 @@
-
 # Figure 7e-g: GSEA using AML cell type-specific genesets comparing FLT3 wild type and mutant midostaurin responders and non-responders
 
 # load libraries
-
 library(dplyr)
 library(tidyr)
 library(clusterProfiler)
@@ -10,16 +8,12 @@ library(ggridges)
 library(ggplot2)
 library(readxl)
 
-
 # load protein data and annotation files
-
 setwd()
 protein_data = read.table("protein.txt", stringsAsFactors = FALSE, header = TRUE, quote = "", comment.char = "",sep = "\t")
 annotation <- read.csv("annotation.csv", stringsAsFactors = FALSE) 
 
-
 # filter out NA values from protein table
-
 if (any(duplicated(protein_data$Name))) {
   protein_data <- protein_data[!duplicated(protein_data$Name), ]
 }
@@ -27,9 +21,7 @@ protein_data_filtered <- na.omit(protein_data)
 rownames(protein_data_filtered) <- protein_data_filtered$Name
 protein_data_filtered$Name <- NULL  
 
-
 # assign patients to respective groups and perform multiple t tests
-
 wt <- annotation$ID[annotation$Group == "wt"]
 mut <- annotation$ID[annotation$Group == "mut"]
 wt_responder <- annotation$ID[annotation$Label == "responder_wt"]
@@ -64,9 +56,7 @@ t_test3 <- function(Name) {
   data.frame(p = p_value, mean1, mean2)
 }
 
-
 # merge t test results into a single table
-
 result1 <- do.call(rbind, lapply(rownames(protein_data_filtered), t_test1)) %>%
   mutate(
     q = p.adjust(p, method = "fdr"),
@@ -100,9 +90,7 @@ result3 <- do.call(rbind, lapply(rownames(protein_data_filtered), t_test3)) %>%
   arrange(p) %>%
   as.data.frame()
 
-
 # create sorted gene list for GSEA
-
 gene_list_1 <- result1$diff
 names(gene_list_1) <- result1$Protein 
 gene_list_1 <- sort(gene_list_1, decreasing = T) 
@@ -115,9 +103,7 @@ gene_list_3 <- result3$diff
 names(gene_list_3) <- result3$Protein 
 gene_list_3 <- sort(gene_list_3, decreasing = T) 
 
-
 # load gene set and run GSEA. Genesets are available at https://github.com/andygxzeng/AMLHierarchies and https://doi.org/10.1016/j.cell.2019.01.031 (Table S3 - Tumor-derived, combined)
-
 gene_list_LPSC<- read.gmt("AMLCellType_Genesets.gmt")
 LSPC_GSEA_res1 <- GSEA(geneList = gene_list_1,
                       pvalueCutoff = 10,
@@ -139,9 +125,7 @@ VG_GSEA_res1 <- GSEA(geneList = gene_list_1,
                     TERM2GENE = gene_list_VG[c('gs_name', 'gene_symbol')],
                     minGSSize = 1)
 
-
 # filter and organize GSEA results
-
 LSPC_GSEA_df <- LSPC_GSEA_res1@result
 filt_LSPC_GSEA_df <- LSPC_GSEA_df %>% dplyr::filter(rank > 40)
 filt_LPSC_GSEA_res <- LSPC_GSEA_res1
@@ -153,11 +137,8 @@ LSPC_GSEA_wt <- LSPC_GSEA_wt %>% dplyr::filter(rank > 40)
 LSPC_GSEA_mut <- LSPC_GSEA_res3@result
 LSPC_GSEA_mut <- LSPC_GSEA_mut %>% dplyr::filter(rank > 40)
 
-
 # plot wt vs mut data
-
 options(enrichplot.colours = c("#B2182B","#2166AC"))
-
 ridgeplot(VG_GSEA_res1) +
   labs(x = "Enrichment distribution") + 
   theme_bw() +
@@ -183,18 +164,14 @@ ridgeplot(filt_LPSC_GSEA_res) +
 
 ggsave("fig_7f.png", width = 5.5, height = 5.5)
 
-
 # merge GSEA results
-
 LSPC_comparison1 <- LSPC_GSEA_wt %>%
   dplyr::select(ID, NES, p.adjust) %>%
   dplyr::rename(NES_comparison1 = NES, p.adjust_comparison1 = p.adjust)
 LSPC_comparison2 <- LSPC_GSEA_mut %>%
   dplyr::select(ID, NES, p.adjust) %>%
   dplyr::rename(NES_comparison2 = NES, p.adjust_comparison2 = p.adjust)
-
 merged_results <- full_join(LSPC_comparison1, LSPC_comparison2, by = "ID") 
-
 long_data <- merged_results %>%
   pivot_longer(cols = starts_with("NES"), names_to = "Comparison", values_to = "NES") %>%
   pivot_longer(cols = starts_with("p.adjust"), names_to = "p.adjust_name", values_to = "p.adjust") %>%
@@ -202,14 +179,11 @@ long_data <- merged_results %>%
   mutate(Comparison = case_when(
     Comparison == "NES_comparison1" ~ "FLT3wt",
     Comparison == "NES_comparison2" ~ "FLT3mut"))
-
 long_data <- long_data %>%
   mutate(log10_p_adjust = -log10(p.adjust)) %>%
   mutate(ID = factor(ID, levels = unique(ID))) 
 
-
 # plot merged data
-
 ggplot(long_data, aes(x = abs(NES), y = ID, size = -log10(p.adjust), color = NES > 0)) +   
   geom_point(alpha = 0.8) +
   facet_wrap(~Comparison) +
