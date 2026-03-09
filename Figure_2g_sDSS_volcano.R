@@ -1,22 +1,17 @@
-
 # Figure 2g: Volcano plot of all tested drugs in FLT3 mutant midostaurin responders and non-responders
 
 # load libraries
-
 library(dplyr)
 library(ggplot2)
 library(ggrepel)
 
 # load sDSS data and annotation files
-
 setwd()
 sDSS_data <- as.matrix(read.csv("sDSS.csv", header = TRUE, row.names = 1))
 annotation <- read.csv("annotation.csv", stringsAsFactors = FALSE) 
 drug_annotation <- read.csv("drug_class.csv", stringsAsFactors = FALSE) 
 
-
 # assign patients to respective groups and perform multiple t tests
-
 responder <- annotation$ID[annotation$Label == "responder_mut"]
 non_responder <- annotation$ID[annotation$Label == "non_responder_mut"]
 
@@ -33,9 +28,7 @@ t_test <- function(Name) {
   )
 }
 
-
 # merge t test results into a single table
-
 result <- do.call(rbind, lapply(rownames(sDSS_data), t_test)) %>%
   mutate(
     q = p.adjust(p, method = "fdr"),
@@ -48,9 +41,7 @@ result <- do.call(rbind, lapply(rownames(sDSS_data), t_test)) %>%
 
 result_sorted <- result[order(result$Drug), ]
 
-
 # add drug annotations to result table
-
 rownames(drug_annotation) <- drug_annotation$drug 
 drug_annotation <- drug_annotation[order(drug_annotation$drug), ]
 result_sorted$class <- drug_annotation$class
@@ -58,9 +49,7 @@ result_sorted$subclass <-drug_annotation$subclass
 result_sorted$class <- gsub("_", " ", sub("^[^_]*_", "", result_sorted$class))
 result_sorted$subclass <- gsub("_", " ", gsub("inhibitor", "i", result_sorted$subclass))
 
-
 # plot data
-
 cutoff <- result_sorted$p < 0.05 & abs(result_sorted$dsDSS) > 6
 result_sorted$alpha <- ifelse(result_sorted$log10p > 1.3, 1, 0.5)
 class_color <- c("Conventional chemotherapy" = "#66C2A5",
